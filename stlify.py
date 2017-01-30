@@ -34,14 +34,21 @@ class Path:
             for coordinate in section:
                 coordinate.translate(tx)
 
-class Coordinate:
+class Vector2D:
     def __init__(self, x=0, y=0):
         self.x = x
         self.y = y
 
+    @staticmethod
+    def from_vector(v):
+        return Vector2D(v.x, x.y)
+
     def translate(self, coordinate):
         self.x += coordinate.x
         self.y += coordinate.y
+
+    def copy(self):
+        return Vector2D.from_vector(self)
 
     def __repr__(self):
         if self.x is None or self.y is None:
@@ -84,7 +91,7 @@ def parse_path(path_str, x_scale = 1, y_scale = 1):
     parts = path_str.split(" ")
     sections = []
     current_section = []
-    current_coordinate = Coordinate(None, None)
+    current_coordinate = Vector2D(None, None)
     x_pos = 0
     y_pos = 0
     lineto_relative = True
@@ -97,7 +104,7 @@ def parse_path(path_str, x_scale = 1, y_scale = 1):
             if current_section:
                 sections.append(current_section)
             current_section = []
-            current_coordinate = Coordinate(None, None)
+            current_coordinate = Vector2D(None, None)
             lineto_relative = True
         elif part == "M":
             print("Absolute moveto")
@@ -105,27 +112,27 @@ def parse_path(path_str, x_scale = 1, y_scale = 1):
             if current_section:
                 sections.append(current_section)
             current_section = []
-            current_coordinate = Coordinate(None, None)
+            current_coordinate = Vector2D(None, None)
             lineto_relative = False
         elif part.lower() == "z":
             # finish the current section
             if current_section:
                 sections.append(current_section)
             current_section = []
-            current_coordinate = Coordinate(None, None)
+            current_coordinate = Vector2D(None, None)
         elif part == "l":
             print("\trelative lineto")
             # relative coordinates from here on
             if current_coordinate.x is not None and current_coordinate.y is not None:
                 current_section.append(current_coordinate)
-            current_coordinate = Coordinate(None, None)
+            current_coordinate = Vector2D(None, None)
             lineto_relative = True
         elif part == "L":
             print("\tabsolute lineto")
             # absolute coordinates from here on
             if current_coordinate.x is not None and current_coordinate.y is not None:
                 current_section.append(current_coordinate)
-            current_coordinate = Coordinate(None, None)
+            current_coordinate = Vector2D(None, None)
             lineto_relative = False
         elif "," in part:
             # add an x/y coordinate with the current offset
@@ -139,9 +146,9 @@ def parse_path(path_str, x_scale = 1, y_scale = 1):
                 # we're either the first element in a moveto section, or part of an absolute lineto section
                 x_pos = x = float(x)/x_scale
                 y_pos = y = float(y)/y_scale
-            current_coordinate = Coordinate(x,y)
+            current_coordinate = Vector2D(x,y)
             current_section.append(current_coordinate)
-            current_coordinate = Coordinate(None, None)
+            current_coordinate = Vector2D(None, None)
         else:
             # complete the current coordinate
             assert(current_coordinate.y is None)
@@ -158,7 +165,7 @@ def parse_path(path_str, x_scale = 1, y_scale = 1):
     # Set the first coordinate to 0,0
     path = Path(sections)
     first_coord = path.sections[0][0]
-    tx = Coordinate(-first_coord.x, -first_coord.y)
+    tx = Vector2D(-first_coord.x, -first_coord.y)
     path.translate_all(tx)
     return path
 
@@ -166,9 +173,33 @@ def triangleize(path, height):
     # TODO
     # first - determine nesting and if any paths intersect other paths (this will be an error case)
     # second - triangleize the strips of sections according to their nesting order and the model height
-    # third - create top and bottom faces
+    # p2--p4
+    # |  / |
+    # | /  |
+    # p1--p3
+    strips = []
     for section in path.sections:
-        pass
+        strip = []
+        for i in range(len(section)):
+            i1 = i
+            if i > len(section) + 1:
+                i2 = 0
+            else:
+                i2 = i + 1
+            p1 = section[i1]
+            p2 = Vector2D.from_vector(p1).translate(Vector2D(0,height))
+            p3 = section[i2]
+            p4 = Vector2D.from_vector(p3).translate(Vector2D(0,height))
+
+            t1 = [p1.copy(), p4.copy(), p2.copy()]
+            t2 = [p1.copy(), p3.copy(), p4.copy()]
+            strip.append(t1)
+            strip.append(t2)
+        strips.append(strip)
+    # third - create top and bottom faces
+
+
+
 
 def visualize_path(path, name):
     from PIL import Image, ImageDraw
