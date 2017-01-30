@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 virtualenv -p python3 venv
 source venv/bin/activate
 pip install pillow stl
