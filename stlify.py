@@ -55,6 +55,19 @@ class Vector2D:
             return "(invalid)"
         return "({:3.2f}, {:3.2f})".format(self.x, self.y)
 
+class Vector3D:
+    def __init__(self, x=0, y=0, z=0):
+        self.x = x
+        self.y = y
+        self.z = z
+
+    @staticmethod
+    def from_2d_with_z(v, z):
+        return Vector3D(v.x, v.y, z)
+
+    def copy(self):
+        return Vector3D(self.x, self.y, self.z)
+
 def get_paths(file):
     print("Loading {0}".format(file))
     tree = xml.etree.cElementTree.parse(file)
@@ -186,10 +199,10 @@ def triangleize(path, height):
                 i2 = 0
             else:
                 i2 = i + 1
-            p1 = section[i1]
-            p2 = Vector2D.from_vector(p1).translate(Vector2D(0,height))
-            p3 = section[i2]
-            p4 = Vector2D.from_vector(p3).translate(Vector2D(0,height))
+            p1 = Vector3D.from_2d_with_z(section[i1], 0)
+            p2 = Vector3D.from_2d_with_z(p1, height)
+            p3 = Vector3D.from_2d_with_z(section[i2], 0)
+            p4 = Vector3D.from_2d_with_z(p3, height)
 
             t1 = [p1.copy(), p4.copy(), p2.copy()]
             t2 = [p1.copy(), p3.copy(), p4.copy()]
