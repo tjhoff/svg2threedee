@@ -12,3 +12,16 @@ def test_file_load():
     test_files = ["gear.svg", "square.svg", "squares_cut.svg", "squares.svg"]
     for file_name in test_files:
         stlify.get_paths("test_svg/{}".format(file_name))
+
+def test_triangleize():
+    path = stlify.parse_path("m 0,1016.9292 35.433071,0 0,35.433 -35.433071,0 z")
+    stlify.triangleize(path, 1)
+
+def test_stlify():
+    path = stlify.parse_path("M 0 921.25977 L 0 1062.9922 L 141.73242 1062.9922 L 141.73242 921.25977 L 0 921.25977 z M 35.433594 956.69336 L 106.29883 956.69336 L 106.29883 1027.5586 L 35.433594 1027.5586 L 35.433594 956.69336 z", 3.54, 3.54)
+    solid = stlify.stl_from_triangles(stlify.triangleize(path, 1))
+    with open("test.stl", "w+") as f:
+        solid.write_ascii(f)
+
+if __name__ == "__main__":
+    test_stlify()

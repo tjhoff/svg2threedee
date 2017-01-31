@@ -1,6 +1,9 @@
 import stl
 import xml.etree.cElementTree
 import logging
+import math
+
+import triangulate
 
 class Path:
     def __init__(self, sections = None):
@@ -55,6 +58,9 @@ class Vector2D:
             return "(invalid)"
         return "({:3.2f}, {:3.2f})".format(self.x, self.y)
 
+    def __getitem__(self, key):
+        return [self.x, self.y][key]
+
 class Vector3D:
     def __init__(self, x=0, y=0, z=0):
         self.x = x
@@ -64,6 +70,29 @@ class Vector3D:
     @staticmethod
     def from_2d_with_z(v, z):
         return Vector3D(v.x, v.y, z)
+
+    def sub(self, v):
+        return Vector3D(self.x-v.x, self.y-v.y, self.z-v.z)
+
+    def cross(self, v):
+        return self.x*v.x + self.y*v.y + self.z*v.z
+
+    def length(self):
+        return math.sqrt(self.x ** 2 + self.y ** 2 + self.z ** 2)
+
+    def normalize(self):
+        length = self.length()
+        if length == 0:
+            return Vector3D(0,0,0)
+        return Vector3D(self.x/length, self.y/length, self.z/length)
+
+    def __repr__(self):
+        if self.x is None or self.y is None or self.z is None:
+            return "(invalid)"
+        return "({:3.2f}, {:3.2f}, {:3.2f})".format(self.x, self.y, self.z)
+
+    def as_list(self):
+        return [self.x, self.y, self.z]
 
     def copy(self):
         return Vector3D(self.x, self.y, self.z)
@@ -190,29 +219,66 @@ def triangleize(path, height):
     # |  / |
     # | /  |
     # p1--p3
-    strips = []
+    triangles = []
     for section in path.sections:
-        strip = []
+
         for i in range(len(section)):
             i1 = i
-            if i > len(section) + 1:
+            if i >= len(section) - 1:
                 i2 = 0
             else:
                 i2 = i + 1
+
             p1 = Vector3D.from_2d_with_z(section[i1], 0)
-            p2 = Vector3D.from_2d_with_z(p1, height)
+            p2 = Vector3D.from_2d_with_z(section[i1], height)
             p3 = Vector3D.from_2d_with_z(section[i2], 0)
-            p4 = Vector3D.from_2d_with_z(p3, height)
+            p4 = Vector3D.from_2d_with_z(section[i2], height)
 
             t1 = [p1.copy(), p4.copy(), p2.copy()]
             t2 = [p1.copy(), p3.copy(), p4.copy()]
-            strip.append(t1)
-            strip.append(t2)
-        strips.append(strip)
+            triangles.append(t1)
+            triangles.append(t2)
+
+        face = []
+        while section:
+            ear = triangulate.GetEar(section)
+            if not ear:
+                break
+            face.append(ear)
+        # create top face
+        for ear in face:
+            triangle = [Vector3D.from_2d_with_z(ear[0], height),
+                        Vector3D.from_2d_with_z(ear[1], height),
+                         Vector3D.from_2d_with_z(ear[2], height)]
+            triangles.append(triangle)
+        # create bottom face
+        for ear in face:
+            triangle = [Vector3D.from_2d_with_z(ear[0], 0),
+                        Vector3D.from_2d_with_z(ear[2], 0),
+                         Vector3D.from_2d_with_z(ear[1], 0)]
+            triangles.append(triangle)
+
     # third - create top and bottom faces
 
+    return triangles
 
+def normal_from_triangle(triangle):
+    p1,p2,p3 = triangle
+    v = p2.sub(p1)
+    w = p3.sub(p3)
+    nx = (v.y * w.z) - (v.z * w.y)
+    ny = (v.z * w.x) - (v.x * w.z)
+    nz = (v.x * w.y) - (v.y * w.x)
+    n = Vector3D(nx, ny, nz).normalize()
+    return n
 
+def stl_from_triangles(triangles):
+    facets = []
+    for triangle in triangles:
+        normal = normal_from_triangle(triangle)
+        facet = stl.types.Facet(normal.as_list(), [triangle[0].as_list(), triangle[1].as_list(), triangle[2].as_list()])
+        facets.append(facet)
+    return stl.Solid("thing", facets)
 
 def visualize_path(path, name):
     from PIL import Image, ImageDraw
@@ -237,13 +303,18 @@ def visualize_path(path, name):
 
 if __name__ == "__main__":
     import sys
+    height = 0
     if len(sys.argv) > 1:
         file_path = sys.argv[1]
+    if len(sys.argv) > 2:
+        height = float(sys.argv[2])
     else:
         print("No correct file path provided - try python {} {} as an example".format(sys.argv[0], "test_svg/gear.svg"))
     paths = get_paths(file_path)
-    print(paths)
+
     i = 0
     for path in paths:
-        visualize_path(path, i)
+        solid = stl_from_triangles(triangleize(path, height))
+        with open("path_{}.stl".format(i), "w") as f:
+            solid.write_ascii(f)
         i+=1
