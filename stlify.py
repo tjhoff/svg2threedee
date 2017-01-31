@@ -278,6 +278,7 @@ def stl_from_triangles(triangles):
         normal = normal_from_triangle(triangle)
         facet = stl.types.Facet(normal.as_list(), [triangle[0].as_list(), triangle[1].as_list(), triangle[2].as_list()])
         facets.append(facet)
+    print("{} facets".format(len(facets)))
     return stl.Solid("thing", facets)
 
 def visualize_path(path, name):

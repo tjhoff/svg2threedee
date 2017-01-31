@@ -1,8 +1,6 @@
 # ess vee gee to three dee
 
-## this doesn't actually do anything but parse SVG into a list of connected points right now!
-
-### I'm working on triangulation of nested paths currently.
+## It's super slow (O(n^2) where n is # lines, but it works for single polygons (no nesting right now)
 
  To set up: `./setup.sh`
 
